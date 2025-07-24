@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/BushSchoolIT/bbextract/compare/v1.3.0...v1.4.0) (2025-07-24)
+
+
+### Features
+
+* **ci:** functioning building ([67ac81d](https://github.com/BushSchoolIT/bbextract/commit/67ac81d443fe372f3282ea5c57348b3d48c5be77))
+
 ## [1.3.0](https://github.com/BushSchoolIT/bbextract/compare/v1.2.0...v1.3.0) (2025-07-24)
 
 

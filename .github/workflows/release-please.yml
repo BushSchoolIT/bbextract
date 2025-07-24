@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v4
         with:
-          package-name: release
+          package-name: bbextract
           bump-minor-pre-major: true
           bump-patch-for-minor-pre-major: true
-          release-type: simple
+          release-type: go

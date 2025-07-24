@@ -32,6 +32,11 @@ var (
 		Short: "Synchronizes the google logins of students with the database in the data warehouse",
 		RunE:  GSyncStudents,
 	}
+	mailsyncCmd = &cobra.Command{
+		Use:   "mailsync",
+		Short: "Synchronizes the mailing lists in email octopus from the database",
+		RunE:  GSyncStudents,
+	}
 	commentsCmd = &cobra.Command{
 		Use:   "comments",
 		Short: "Extracts transcript comments from blackbaud and imports it into the database",
@@ -52,11 +57,13 @@ var (
 		Short: "Extracts enrollment info from blackbaud and imports into the database",
 		RunE:  Enrollment,
 	}
-	fLogFile    string
-	fLogLevel   string
-	fConfigFile string
-	fAuthFile   string
-	fGAuthFile  string
+	fLogFile      string
+	fLogLevel     string
+	fConfigFile   string
+	fAuthFile     string
+	fGAuthFile    string
+	fOctoAuthFile string
+	fMailInfoFile string
 )
 
 func Execute() {
@@ -67,6 +74,11 @@ func Execute() {
 }
 
 func init() {
+	gsyncStudentsCmd.PersistentFlags().StringVar(&fGAuthFile, "gauth", "g_auth.json", "config file for google authentication (service account JSON)")
+	mailsyncCmd.PersistentFlags().StringVar(&fOctoAuthFile, "octo-auth", "octo_auth.json", "file containing email octopus API key json ({'key':'<API_KEY>'})")
+	mailsyncCmd.PersistentFlags().StringVar(&fMailInfoFile, "mailinfo", "mailinfo.json", "file containing mailinfo for email octopus")
+	rootCmd.PersistentFlags().StringVar(&fConfigFile, "config", "config.json", "config file containing list IDs")
+	rootCmd.PersistentFlags().StringVar(&fAuthFile, "auth", "bb_auth.json", "authconfig for blackbaud")
 	rootCmd.AddCommand(transcriptCmd)
 	rootCmd.AddCommand(parentsCmd)
 	rootCmd.AddCommand(attendanceCmd)
@@ -74,9 +86,7 @@ func init() {
 	rootCmd.AddCommand(gpaCmd)
 	rootCmd.AddCommand(gsyncStudentsCmd)
 	rootCmd.AddCommand(enrollmentCmd)
-	rootCmd.PersistentFlags().StringVar(&fConfigFile, "config", "config.json", "config file containing list IDs")
-	rootCmd.PersistentFlags().StringVar(&fAuthFile, "auth", "bb_auth.json", "authconfig for blackbaud")
-	rootCmd.PersistentFlags().StringVar(&fGAuthFile, "gauth", "g_auth.json", "config file for google authentication (service account JSON)")
+	rootCmd.AddCommand(mailsyncCmd)
 }
 
 type Config struct {

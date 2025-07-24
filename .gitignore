@@ -1,4 +1,6 @@
 bb_auth.json
 g_auth.json
+octo_auth.json
+*_auth.json
 bbextract
 .env

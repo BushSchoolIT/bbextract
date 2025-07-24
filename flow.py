@@ -31,25 +31,35 @@ def run_exe(args: list[str]):
     logger = get_run_logger()
 
     logger.info(f"Running cmd: {[exe_path] + args[1:]}")
-    result = subprocess.run(
+
+    # Use Popen for streaming output
+    process = subprocess.Popen(
         [exe_path] + args[1:],
         cwd=exe_dir,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=subprocess.STDOUT,  # merge stderr into stdout
         text=True,
-       )
+        bufsize=1,  # line-buffered
+        universal_newlines=True
+    )
 
-    if result.returncode != 0:
-        logger.error(f"{name} failed with exit code {result.returncode}")
-        logger.error("Error output:\n%s", result.stderr.strip)
-        raise Exception(f"{name} failed with code {result.returncode}")
+    # Stream output line by line
+    if process.stdout is None:
+        raise Exception("stdout is none, bad type")
+
+    for line in process.stdout:
+        logger.info(line.rstrip())
+
+    process.stdout.close()
+    return_code = process.wait()
+
+    if return_code != 0:
+        logger.error(f"{name} failed with exit code {return_code}")
+        raise subprocess.CalledProcessError(return_code, [exe_path] + args[1:])
 
     logger.info(f"{name} completed successfully.")
-    if result.stdout:
-        logger.info(f"{name} stdout:\n{result.stdout.strip()}")
 
-    if result.stderr:
-        logger.warning(f"{name} stderr:\n{result.stderr.strip()}")
+
 
 @task
 def transcripts_task_go():

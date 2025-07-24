@@ -90,12 +90,12 @@ type Parent struct {
 }
 
 const (
-	TOKEN_URL      string = "https://oauth2.sky.blackbaud.com/token"
-	LISTS_API      string = "https://api.sky.blackbaud.com/school/v1/lists/advanced"
-	HOST           string = "api.sky.blackbaud.com"
-	YEAR_API       string = "https://api.sky.blackbaud.com/school/v1/years"
-	ATTENDANCE_API string = "https://api.sky.blackbaud.com/school/v1/attendance"
-	USERS_API      string = "https://api.sky.blackbaud.com/school/v1/users"
+	TokenUrl      string = "https://oauth2.sky.blackbaud.com/token"
+	ListsApi      string = "https://api.sky.blackbaud.com/school/v1/lists/advanced"
+	Host          string = "api.sky.blackbaud.com"
+	YearApi       string = "https://api.sky.blackbaud.com/school/v1/years"
+	AttendanceApi string = "https://api.sky.blackbaud.com/school/v1/attendance"
+	UsersApi      string = "https://api.sky.blackbaud.com/school/v1/users"
 )
 
 // Create a new API connector using an existing JSON path (MUST exist, currently we don't generate the auth stuff just yet)
@@ -116,7 +116,7 @@ func NewBBApiConnector(configPath string) (*BBAPIConnector, error) {
 		0,
 		0,
 	}
-	req, err := connector.NewRequest(http.MethodGet, config.Other.TestApiEndpoint, nil /* body */)
+	req, err := connector.NewRequest(http.MethodGet, config.Other.TestApiEndpoint, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func NewBBApiConnector(configPath string) (*BBAPIConnector, error) {
 
 		return NewBBApiConnector(configPath)
 	case http.StatusOK:
-		end, start, err := getYears(connector)
+		start, end, err := getYears(connector)
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +160,7 @@ func refreshToken(config *Config) error {
 	form.Set("preserve_refresh_token", "true")
 	form.Set("client_id", config.SkyAppInformation.AppID)
 	form.Set("client_secret", config.SkyAppInformation.AppSecret)
-	req, err := http.NewRequest(http.MethodPost, TOKEN_URL, strings.NewReader(form.Encode()))
+	req, err := http.NewRequest(http.MethodPost, TokenUrl, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	if err != nil {
 		return err
@@ -197,7 +197,7 @@ func refreshToken(config *Config) error {
 }
 
 func (b *BBAPIConnector) GetAdvancedList(id string, page int) (AdvancedList, error) {
-	req, err := b.NewRequest(http.MethodGet, AdvancedListApi(id, page), nil)
+	req, err := b.NewRequest(http.MethodGet, AdvancedListApi(id, page), http.NoBody)
 	if err != nil {
 		return AdvancedList{}, fmt.Errorf("Unable to create request: %v", err)
 	}
@@ -230,7 +230,7 @@ func (b *BBAPIConnector) NewRequest(method string, url string, body io.Reader) (
 
 	req.Header.Set("Bb-Api-Subscription-Key", b.config.Other.ApiSubscriptionKey)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", b.config.Tokens.AccessToken))
-	req.Header.Set("Host", HOST)
+	req.Header.Set("Host", Host)
 	req.Header.Set("Content-Type", "application/json")
 	return req, nil
 }
@@ -271,7 +271,7 @@ func saveConfig(configPath string, config Config) error {
 
 /* get the academic year from blackbaud */
 func getYears(connector *BBAPIConnector) (int, int, error) {
-	req, err := connector.NewRequest(http.MethodGet, YEAR_API, nil /* body */)
+	req, err := connector.NewRequest(http.MethodGet, YearApi, http.NoBody)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -319,7 +319,7 @@ func getYears(connector *BBAPIConnector) (int, int, error) {
 }
 
 func AdvancedListApi(id string, page int) string {
-	return fmt.Sprintf("%s/%s?page=%d", LISTS_API, id, page)
+	return fmt.Sprintf("%s/%s?page=%d", ListsApi, id, page)
 }
 
 // Thin Datastructure used for processing and inserting into the DB :)

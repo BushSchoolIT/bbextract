@@ -2,17 +2,20 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
+	"io"
+	"log/slog"
+	"os"
+
 	"github.com/BushSchoolIT/extractor/database"
 	"github.com/spf13/cobra"
-	"io"
-	"os"
 )
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   "bbextract",
-		Short: "bbextract is the successor to BlackBaudExtractor rewritten in Go",
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		Use:           "bbextract",
+		Short:         "bbextract is the successor to BlackBaudExtractor rewritten in Go",
 	}
 	transcriptCmd = &cobra.Command{
 		Use:   "transcripts",
@@ -23,6 +26,11 @@ var (
 		Use:   "gpa",
 		Short: "Runs GPA ETL independently",
 		RunE:  Gpa,
+	}
+	gsyncStudentsCmd = &cobra.Command{
+		Use:   "gsync-students",
+		Short: "Synchronizes the google logins of students with the database in the data warehouse",
+		RunE:  GSyncStudents,
 	}
 	commentsCmd = &cobra.Command{
 		Use:   "comments",
@@ -52,7 +60,7 @@ var (
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		slog.Error("An Error Occurred", slog.Any("error", err))
 		os.Exit(1)
 	}
 }
@@ -63,6 +71,7 @@ func init() {
 	rootCmd.AddCommand(attendanceCmd)
 	rootCmd.AddCommand(commentsCmd)
 	rootCmd.AddCommand(gpaCmd)
+	rootCmd.AddCommand(gsyncStudentsCmd)
 	rootCmd.AddCommand(enrollmentCmd)
 	rootCmd.PersistentFlags().StringVar(&fConfigFile, "config", "config.json", "config file containing list IDs")
 	rootCmd.PersistentFlags().StringVar(&fAuthFile, "auth", "bb_auth.json", "authconfig for blackbaud")
@@ -80,6 +89,11 @@ type Config struct {
 		Departed string `json:"departed"`
 		Enrolled string `json:"enrolled"`
 	} `json:"enrollment_list_ids"`
+	Google struct {
+		OUStudentsPath string `json:"ou_students_path"`
+		OUStudentFmt   string `json:"ou_student_fmt"`
+		AdminEmail     string `json:"admin_email"`
+	} `json:"google"`
 }
 
 func loadConfig(configPath string) (Config, error) {

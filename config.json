@@ -15,5 +15,10 @@
     "password":"postgres",
     "address":"0.0.0.0",
     "port":"5432"
+  },
+  "google": {
+    "ou_students_path": "/Students/",
+    "ou_student_fmt": "Class of ",
+    "admin_email": "techmgr@bush.edu"
   }
 }

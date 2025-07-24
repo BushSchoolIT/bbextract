@@ -38,12 +38,20 @@ func Connect(c Config) (State, error) {
 }
 
 func (db *State) QueryGrades(grades []int32) (pgx.Rows, error) {
-	rows, err := db.Conn.Query(*db.Ctx,
+	return db.Conn.Query(*db.Ctx,
 		`SELECT email, first_name, last_name FROM parents WHERE grade && $1`, grades)
-	if err != nil {
-		return nil, err
-	}
-	return rows, nil
+}
+
+// returns colums: email, student_first, student_last, grad_year
+func (db *State) QueryEnrolledStudents(minYear int) (pgx.Rows, error) {
+	return db.Conn.Query(*db.Ctx,
+		`SELECT email, student_first, student_last, grad_year FROM enrollment WHERE graduated=false AND NOT (grad_year IS NULL OR grad_year='NaN') AND grad_year>$1;`, minYear)
+}
+
+// returns colums: email, student_first, student_last, grad_year
+func (db *State) QueryDepartedStudents() (pgx.Rows, error) {
+	return db.Conn.Query(*db.Ctx,
+		`SELECT email, student_first, student_last FROM enrollment WHERE graduated=true OR grad_year IS NULL OR grad_year='NaN';`)
 }
 
 func (db *State) Close() error {

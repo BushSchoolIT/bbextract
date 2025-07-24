@@ -35,10 +35,10 @@ func Attendance(cmd *cobra.Command, args []string) error {
 
 	t := blackbaud.UnorderedTable{}
 	for _, id := range config.Attendance.LevelIDs {
-		req, err := api.NewRequest(http.MethodGet, blackbaud.ATTENDANCE_API, nil /* body */)
+		req, err := api.NewRequest(http.MethodGet, blackbaud.AttendanceApi, http.NoBody)
 		q := req.URL.Query()
 		q.Add("level_id", id)
-		q.Add("day", time.Now().Format("01/02/2006")) // e.g., 07/12/2025
+		q.Add("day", time.Now().Format("01/02/2006")) // DD/MM/YYYY
 		q.Add("offering_type", "1")
 		req.URL.RawQuery = q.Encode()
 		resp, err := api.Client.Do(req)

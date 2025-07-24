@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const YEAR_PREFIX string = "Grad Year"
+const YearPrefix string = "Grad Year"
 
 func Parents(cmd *cobra.Command, args []string) error {
 	// load config and blackbaud API
@@ -50,7 +50,7 @@ func Parents(cmd *cobra.Command, args []string) error {
 			grades := []int{}
 			newRow := []any{}
 			for _, col := range row.Columns {
-				if strings.HasPrefix(col.Name, YEAR_PREFIX) {
+				if strings.HasPrefix(col.Name, YearPrefix) {
 					s, ok := col.Value.(string)
 					if !ok {
 						continue
@@ -59,13 +59,15 @@ func Parents(cmd *cobra.Command, args []string) error {
 					if err != nil {
 						continue
 					}
-					grades = append(grades, gradYearToGrade(val, api.StartYear))
+					grades = append(grades, gradYearToGrade(val, api.EndYear))
 					continue
 				}
 				newRow = append(newRow, col.Value)
 			}
-			newRow = append(newRow, grades)
-			t.Rows = append(t.Rows, newRow)
+			if len(grades) > 0 {
+				t.Rows = append(t.Rows, newRow)
+				newRow = append(newRow, grades)
+			}
 		}
 	}
 	err = db.InsertEmails(t)
@@ -83,7 +85,7 @@ func gradYearToGrade(graduationYear int, currentYear int) int {
 func getParentColumns(row blackbaud.Row) []string {
 	columns := []string{}
 	for _, col := range row.Columns {
-		if strings.HasPrefix(col.Name, YEAR_PREFIX) {
+		if strings.HasPrefix(col.Name, YearPrefix) {
 			continue
 		}
 		columns = append(columns, col.Name)

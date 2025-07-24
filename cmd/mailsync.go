@@ -24,11 +24,11 @@ func Mailsync(cmd *cobra.Command, args []string) error {
 	}
 	defer db.Close()
 
-	mailconfig, err := octopus.LoadMailInfo("mailinfo.json")
+	mailconfig, err := octopus.LoadMailInfo(fMailInfoFile)
 	if err != nil {
 		return fmt.Errorf("can't load data %v", err)
 	}
-	emailOctopusAPIKey, err := octopus.GetApiKey("octo_auth.json")
+	emailOctopusAPIKey, err := octopus.GetApiKey(fOctoAuthFile)
 	if err != nil {
 		return err
 	}

@@ -17,9 +17,6 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 
 BASE_DIR = pathlib.Path(__file__).parent.resolve()
 EXTRACTOR_PATH = os.getenv("EXTRACTOR_PATH", str(BASE_DIR / "bbextract"))
-MAILSYNC_PATH = os.getenv("MAILSYNC_PATH", str(BASE_DIR / "mailsync"))
-
-
 
 def start_worker():
     subprocess.run(["prefect", "worker", "start","--pool", WORK_POOL])
@@ -87,7 +84,7 @@ def parents_task_go():
 
 @task
 def mailsync_task_go():
-    run_exe([MAILSYNC_PATH])
+    run_exe([EXTRACTOR_PATH, "mailsync"])
 
 
 @flow(task_runner=SequentialTaskRunner())

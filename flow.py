@@ -63,6 +63,10 @@ def gpa_task_go():
 def enrollment_task_go():
     run_exe([EXTRACTOR_PATH, "enrollment"])
 
+@task
+def gsync_task_go():
+    run_exe([EXTRACTOR_PATH, "gsync-students"])
+
 @task 
 def comments_task_go():
     run_exe([EXTRACTOR_PATH, "comments"])
@@ -80,6 +84,11 @@ def mailsync_task_go():
 def run_mailsync_go():
     parents_task_go()
     mailsync_task_go()
+
+@flow(task_runner=SequentialTaskRunner())
+def run_enrollment_gsync():
+    enrollment_task_go()
+    gsync_task_go()
 
 @flow
 def run_attendance_go():

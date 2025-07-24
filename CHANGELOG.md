@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.0](https://github.com/BushSchoolIT/bbextract/compare/v1.0.0...v1.1.0) (2025-07-24)
+
+
+### Features
+
+* gpa calculation SQL ([c4b816f](https://github.com/BushSchoolIT/bbextract/commit/c4b816fbccac6e70d7882cd284c2975bfdcc102f))
+* gsync complete ([e7811c6](https://github.com/BushSchoolIT/bbextract/commit/e7811c6448f60ffd0855afa8d4274718a0dac75a))
+* gsync-students ([3ec5e53](https://github.com/BushSchoolIT/bbextract/commit/3ec5e535ba7705808623626bd100f6414b1f2d83))
+* initial gsync support ([d38a340](https://github.com/BushSchoolIT/bbextract/commit/d38a3402945d04ff336ecc748b020dd74b939482))
+* update schema and add enrollment ([1298136](https://github.com/BushSchoolIT/bbextract/commit/1298136117cfa1be861c4c1f0b74386ad6b5a005))
+
+
+### Bug Fixes
+
+* all error handling ([47effef](https://github.com/BushSchoolIT/bbextract/commit/47effefa0a8724b0e6d013015597cd77dc86649e))
+* flow.py ([dd5f39e](https://github.com/BushSchoolIT/bbextract/commit/dd5f39ec62288a8a5f757b50def9be52e08997e7))
+* flow.py ([63d89a7](https://github.com/BushSchoolIT/bbextract/commit/63d89a73d72b8c70f0043a094894a3f78cbc11d4))
+* use decimal ([861bb38](https://github.com/BushSchoolIT/bbextract/commit/861bb389aa83decad533a3592d92e50bc5fe34a8))
+
 ## 1.0.0 (2025-07-15)
 
 

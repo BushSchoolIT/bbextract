@@ -45,13 +45,13 @@ func (db *State) QueryGrades(grades []int32) (pgx.Rows, error) {
 // returns colums: email, student_first, student_last, grad_year
 func (db *State) QueryEnrolledStudents(minYear int) (pgx.Rows, error) {
 	return db.Conn.Query(*db.Ctx,
-		`SELECT email, student_first, student_last, grad_year FROM enrollment WHERE graduated=false AND NOT (grad_year IS NULL OR grad_year='NaN') AND grad_year>$1;`, minYear)
+		`SELECT email, student_first, student_last, grad_year FROM enrollment WHERE graduated=false AND NOT (grad_year IS NULL OR grad_year='NaN') AND grad_year>$1 AND email IS NOT NULL;`, minYear)
 }
 
-// returns colums: email, student_first, student_last, grad_year
-func (db *State) QueryDepartedStudents() (pgx.Rows, error) {
+// returns colums: email, student_first, student_last
+func (db *State) QueryDepartedStudents(minYear int) (pgx.Rows, error) {
 	return db.Conn.Query(*db.Ctx,
-		`SELECT email, student_first, student_last FROM enrollment WHERE graduated=true OR grad_year IS NULL OR grad_year='NaN';`)
+		`SELECT email, student_first, student_last FROM enrollment WHERE (graduated=true OR grad_year IS NULL OR grad_year='NaN') AND email IS NOT NULL;`)
 }
 
 func (db *State) Close() error {

@@ -7,14 +7,15 @@ import (
 	"encoding/json"
 	"mime"
 	"path"
+	"slices"
 	"strings"
+	"time"
 
 	"fmt"
 	"io"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
-	"net/http/httputil"
 	"net/textproto"
 	"os"
 
@@ -32,8 +33,8 @@ const (
 	GUserScope      string = "https://www.googleapis.com/auth/admin.directory.user"
 	GOrgUnitScope   string = "https://www.googleapis.com/auth/admin.directory.orgunit"
 	GDirectoryBatch string = "https://admin.googleapis.com/batch/admin/directory/v1"
-	GDirectoryUser  string = "https://admin.googleapis.com/admin/directory/v1/users"
-	MaxStudents     int    = 100000
+	GDirectoryUser  string = "https://admin.googleapis.com/admin/directory/v1/users/"
+	MaxStudents     int    = 10000
 )
 
 func GSyncStudents(cmd *cobra.Command, args []string) error {
@@ -84,13 +85,14 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 	for _, ou := range ouList.OrganizationUnits {
 		ouMap[ou.OrgUnitPath] = ou
 	}
+	// the boolean whether or not the user is suspended
 	userMap := make(map[string]bool, MaxStudents)
 	userCall := gSrv.Users.List().Customer(GCustomer)
 	err = userCall.Pages(ctx, func(users *admin.Users) error {
 		for _, u := range users.Users {
 			lowerCaseEmail := strings.ToLower(u.PrimaryEmail)
 			if strings.Contains(u.OrgUnitPath, "Students") {
-				userMap[lowerCaseEmail] = true
+				userMap[lowerCaseEmail] = u.Suspended
 			}
 		}
 		return nil
@@ -99,7 +101,7 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	emailReqMap := map[string]*http.Request{}
+	emailReqs := []Subrequest{}
 	enrolled, err := db.QueryEnrolledStudents(api.StartYear - 1)
 	if err != nil {
 		return err
@@ -119,8 +121,8 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 		user := GUser{
 			Email: email,
 			Name: GName{
-				GivenName:  studentFirst,
-				FamilyName: studentLast,
+				studentFirst,
+				studentLast,
 			},
 			Suspended: false,
 			// Password is kinda dumb since students login using SSO 🤷 it's just required by the API
@@ -155,22 +157,111 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 			}
 			ouMap[newUnit.OrgUnitPath] = newUnit
 		}
-		emailReqMap[email] = req
-	}
-	addReq, err := BatchRequest(emailReqMap, http.MethodPost, GDirectoryBatch)
-	if err != nil {
-		return err
-	}
-	dump, _ := httputil.DumpRequest(addReq, true)
-	fmt.Printf("dump:\n%s\n", dump)
-	resp, err := client.Do(addReq)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status code returned: %d, status: %s", resp.StatusCode, resp.Status)
+		emailReqs = append(emailReqs, Subrequest{email, req})
 	}
 
+	departed, err := db.QueryDepartedStudents(api.StartYear - 1)
+	if err != nil {
+		return err
+	}
+	defer departed.Close()
+	for departed.Next() {
+		var email, studentFirst, studentLast string
+		err := departed.Scan(&email, &studentFirst, &studentLast)
+		if err != nil {
+			return err
+		}
+		email = strings.ToLower(email)
+		suspended, exists := userMap[email]
+		// user does not exist, do not attempt to update
+		if !exists {
+			continue
+		}
+		// user already suspended, skip
+		if suspended {
+			continue
+		}
+		u := GUser{
+			Name: GName{
+				studentFirst,
+				studentLast,
+			},
+			Suspended: true,
+		}
+		data, err := json.Marshal(u)
+		if err != nil {
+			return err
+		}
+		req, err := http.NewRequest(http.MethodPut, GDirectoryUser+email, bytes.NewReader(data))
+		if err != nil {
+			return err
+		}
+		emailReqs = append(emailReqs, Subrequest{email, req})
+	}
+
+	for c := range slices.Chunk(emailReqs, 50) {
+		addReq, err := BatchRequest(c, http.MethodPost, GDirectoryBatch)
+		if err != nil {
+			return err
+		}
+		resp, err := client.Do(addReq)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("bad status code returned: %d, status: %s", resp.StatusCode, resp.Status)
+		}
+		err = ProcessBatchResponse(resp)
+		if err != nil {
+			return err
+		}
+		// Rate limit for a minute (no more than 60 requests per minute)
+		time.Sleep(time.Minute)
+	}
+
+	return nil
+}
+
+// https://developers.google.com/workspace/admin/directory/v1/guides/manage-users
+// we make our own structs here because the google API package sucks and we can't access the raw requests
+type GName struct {
+	GivenName  string `json:"givenName,omitempty"`
+	FamilyName string `json:"familyName,omitempty"`
+}
+type GUser struct {
+	Email       string `json:"primaryEmail"`
+	Name        GName  `json:"name"`
+	Suspended   bool   `json:"suspended,omitempty"`
+	Password    string `json:"password,omitempty"`
+	OrgUnitPath string `json:"orgUnitPath,omitempty"`
+}
+
+// Creates a batch request with the provided map, key corresponds to the content-id and creates a request
+func BatchRequest(reqs []Subrequest, method string, path string) (*http.Request, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for _, subReq := range reqs {
+		w, err := writer.CreatePart(textproto.MIMEHeader{
+			"Content-Type": {"application/http"},
+			"Content-ID":   {subReq.ContentId},
+		})
+		if err != nil {
+			return nil, err
+		}
+		if err = subReq.Req.Write(w); err != nil {
+			return nil, err
+		}
+	}
+	writer.Close()
+	req, err := http.NewRequest(method, path, &body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "multipart/mixed; boundary="+writer.Boundary())
+	return req, nil
+}
+
+func ProcessBatchResponse(resp *http.Response) error {
 	mediaType, params, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	if err != nil {
 		return fmt.Errorf("invalid content type: %v", err)
@@ -194,12 +285,8 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 		}
 		headers := part.Header
 		r := bufio.NewReader(part)
-		email := strings.TrimPrefix(headers.Get("Content-Id"), "response-")
-		req, exists := emailReqMap[email]
-		if !exists {
-			return fmt.Errorf("unable to find email in emailMap: %s", email)
-		}
-		partResp, err := http.ReadResponse(r, req)
+		contentId := strings.TrimPrefix(headers.Get("Content-Id"), "response-")
+		partResp, err := http.ReadResponse(r, nil)
 		if err != nil {
 			return fmt.Errorf("unable to read multipart response: %v", err)
 		}
@@ -209,47 +296,12 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 		}
 		// unhandled error
 		b, _ := io.ReadAll(partResp.Body)
-		return fmt.Errorf("bad request, status code: %d, status: %v, body: %s", partResp.StatusCode, partResp.Status, b)
+		return fmt.Errorf("bad request, status code: %d, status: %v, body: %s, contentId: %s", partResp.StatusCode, partResp.Status, b, contentId)
 	}
-
 	return nil
 }
 
-// https://developers.google.com/workspace/admin/directory/v1/guides/manage-users
-// we make our own structs here because the google API package sucks and we can't access the raw requests
-type GName struct {
-	GivenName  string `json:"givenName"`
-	FamilyName string `json:"familyName"`
-}
-type GUser struct {
-	Email       string `json:"primaryEmail"`
-	Name        GName  `json:"name"`
-	Suspended   bool   `json:"suspended"`
-	Password    string `json:"password"`
-	OrgUnitPath string `json:"orgUnitPath,omitempty"`
-}
-
-// Creates a batch request with the provided map, key corresponds to the content-id and creates a request
-func BatchRequest(reqMap map[string]*http.Request, method string, path string) (*http.Request, error) {
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-	for contentId, req := range reqMap {
-		w, err := writer.CreatePart(textproto.MIMEHeader{
-			"Content-Type": {"application/http"},
-			"Content-ID":   {contentId},
-		})
-		if err != nil {
-			return nil, err
-		}
-		if err = req.Write(w); err != nil {
-			return nil, err
-		}
-	}
-	writer.Close()
-	req, err := http.NewRequest(method, path, &body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "multipart/mixed; boundary="+writer.Boundary())
-	return req, nil
+type Subrequest struct {
+	ContentId string
+	Req       *http.Request
 }

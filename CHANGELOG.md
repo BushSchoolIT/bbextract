@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/BushSchoolIT/bbextract/compare/v1.1.0...v1.2.0) (2025-07-24)
+
+
+### Features
+
+* mailsync ([05796dd](https://github.com/BushSchoolIT/bbextract/commit/05796dd01b6978bf9fc6f22e3b39c05ee5df18e2))
+* phase out mailsync ([dfb611b](https://github.com/BushSchoolIT/bbextract/commit/dfb611b7754b1f6589cdc20fd21c4f0f0209646e))
+
 ## [1.1.0](https://github.com/BushSchoolIT/bbextract/compare/v1.0.0...v1.1.0) (2025-07-24)
 
 

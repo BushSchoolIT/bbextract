@@ -37,6 +37,26 @@ const (
 	MaxStudents     int    = 10000
 )
 
+// https://developers.google.com/workspace/admin/directory/v1/guides/manage-users
+// we make our own structs here because the google API package sucks and we can't access the raw requests
+type GName struct {
+	GivenName  string `json:"givenName,omitempty"`
+	FamilyName string `json:"familyName,omitempty"`
+}
+type GUser struct {
+	Email       string `json:"primaryEmail,omitempty"`
+	Name        GName  `json:"name"`
+	Suspended   bool   `json:"suspended,omitempty"`
+	Password    string `json:"password,omitempty"`
+	OrgUnitPath string `json:"orgUnitPath,omitempty"`
+}
+
+// used for multipart requests
+type Subrequest struct {
+	ContentId string
+	Req       *http.Request
+}
+
 func GSyncStudents(cmd *cobra.Command, args []string) error {
 	api, err := blackbaud.NewBBApiConnector(fAuthFile)
 	if err != nil {
@@ -56,7 +76,7 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 
 	defer db.Close()
 
-	data, err := os.ReadFile("g_auth.json")
+	data, err := os.ReadFile(fGAuthFile)
 	if err != nil {
 		return fmt.Errorf("unable to read service account file: %v", err)
 	}
@@ -76,8 +96,9 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	slog.Info("Getting OU info from Google")
 	ouMap := map[string]*admin.OrgUnit{}
-	ouListCall := gSrv.Orgunits.List(GCustomer).Type("all")
+	ouListCall := gSrv.Orgunits.List(GCustomer).OrgUnitPath(config.Google.OUStudentsPath)
 	ouList, err := ouListCall.Do()
 	if err != nil {
 		return err
@@ -85,22 +106,25 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 	for _, ou := range ouList.OrganizationUnits {
 		ouMap[ou.OrgUnitPath] = ou
 	}
+	slog.Info("Finished collecting OU info from Google")
 	// the boolean whether or not the user is suspended
+	slog.Info("Collecting student info from Google")
 	userMap := make(map[string]bool, MaxStudents)
-	userCall := gSrv.Users.List().Customer(GCustomer)
+	userCall := gSrv.Users.List().Customer(GCustomer).Query("orgUnitPath=" + config.Google.OUStudentsPath)
 	err = userCall.Pages(ctx, func(users *admin.Users) error {
 		for _, u := range users.Users {
 			lowerCaseEmail := strings.ToLower(u.PrimaryEmail)
-			if strings.Contains(u.OrgUnitPath, "Students") {
-				userMap[lowerCaseEmail] = u.Suspended
-			}
+			userMap[lowerCaseEmail] = u.Suspended
 		}
+		slog.Info("Students processed from google", slog.Any("processed", len(users.Users)))
 		return nil
 	})
 	if err != nil {
 		return err
 	}
+	slog.Info("Finished collecting student info from Google")
 
+	slog.Info("Collecting student info from DB")
 	emailReqs := []Subrequest{}
 	enrolled, err := db.QueryEnrolledStudents(api.StartYear - 1)
 	if err != nil {
@@ -126,7 +150,8 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 			},
 			Suspended: false,
 			// Password is kinda dumb since students login using SSO 🤷 it's just required by the API
-			Password:    "DefaultStudentPassword",
+			Password: "DefaultStudentPassword",
+			// /Students/Class of <grad_year>
 			OrgUnitPath: config.Google.OUStudentsPath + config.Google.OUStudentFmt + gradYear,
 		}
 		data, err := json.Marshal(user)
@@ -159,6 +184,7 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 		}
 		emailReqs = append(emailReqs, Subrequest{email, req})
 	}
+	slog.Info("Finished enrolled students")
 
 	departed, err := db.QueryDepartedStudents(api.StartYear - 1)
 	if err != nil {
@@ -198,8 +224,12 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 		}
 		emailReqs = append(emailReqs, Subrequest{email, req})
 	}
+	slog.Info("Finished departed students")
 
+	count := 0
+	slog.Info("Finished ETL", slog.Int("total_to_be_processed", len(emailReqs)))
 	for c := range slices.Chunk(emailReqs, 50) {
+		slog.Info("Processing more students", slog.Int("to_be_processed", len(c)), slog.Int("total", len(emailReqs)), slog.Int("processed", count))
 		addReq, err := BatchRequest(c, http.MethodPost, GDirectoryBatch)
 		if err != nil {
 			return err
@@ -216,27 +246,18 @@ func GSyncStudents(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		// Rate limit for a minute (no more than 60 requests per minute)
+		count = min(count+50, len(emailReqs))
+		slog.Info("Finished slice", slog.Int("processed", count), slog.Int("total", len(emailReqs)), slog.Int("chunk_processed", len(c)))
 		time.Sleep(time.Minute)
 	}
 
 	return nil
 }
 
-// https://developers.google.com/workspace/admin/directory/v1/guides/manage-users
-// we make our own structs here because the google API package sucks and we can't access the raw requests
-type GName struct {
-	GivenName  string `json:"givenName,omitempty"`
-	FamilyName string `json:"familyName,omitempty"`
-}
-type GUser struct {
-	Email       string `json:"primaryEmail"`
-	Name        GName  `json:"name"`
-	Suspended   bool   `json:"suspended,omitempty"`
-	Password    string `json:"password,omitempty"`
-	OrgUnitPath string `json:"orgUnitPath,omitempty"`
-}
-
-// Creates a batch request with the provided map, key corresponds to the content-id and creates a request
+/*
+Creates a batch request with the provided map, key corresponds to the content-id and creates a request
+docs here: https://developers.google.com/workspace/admin/directory/v1/guides/batch
+*/
 func BatchRequest(reqs []Subrequest, method string, path string) (*http.Request, error) {
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -299,9 +320,4 @@ func ProcessBatchResponse(resp *http.Response) error {
 		return fmt.Errorf("bad request, status code: %d, status: %v, body: %s, contentId: %s", partResp.StatusCode, partResp.Status, b, contentId)
 	}
 	return nil
-}
-
-type Subrequest struct {
-	ContentId string
-	Req       *http.Request
 }

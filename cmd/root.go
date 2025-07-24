@@ -56,6 +56,7 @@ var (
 	fLogLevel   string
 	fConfigFile string
 	fAuthFile   string
+	fGAuthFile  string
 )
 
 func Execute() {
@@ -75,6 +76,7 @@ func init() {
 	rootCmd.AddCommand(enrollmentCmd)
 	rootCmd.PersistentFlags().StringVar(&fConfigFile, "config", "config.json", "config file containing list IDs")
 	rootCmd.PersistentFlags().StringVar(&fAuthFile, "auth", "bb_auth.json", "authconfig for blackbaud")
+	rootCmd.PersistentFlags().StringVar(&fGAuthFile, "gauth", "g_auth.json", "config file for google authentication (service account JSON)")
 }
 
 type Config struct {

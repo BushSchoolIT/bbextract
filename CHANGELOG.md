@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/BushSchoolIT/bbextract/compare/v1.2.0...v1.3.0) (2025-07-24)
+
+
+### Features
+
+* update release-please ([4b4b20a](https://github.com/BushSchoolIT/bbextract/commit/4b4b20a800d9dcd27af79789c921625c57747de4))
+
+
+### Bug Fixes
+
+* **deps:** update module google.golang.org/api to v0.243.0 ([323e778](https://github.com/BushSchoolIT/bbextract/commit/323e778f523fc602b00714f32d926b1bf88af945))
+* **deps:** update module google.golang.org/api to v0.243.0 ([cff2ec5](https://github.com/BushSchoolIT/bbextract/commit/cff2ec5c216e8623bbb5ac5d032ddbadc1c0817a))
+
 ## [1.2.0](https://github.com/BushSchoolIT/bbextract/compare/v1.1.0...v1.2.0) (2025-07-24)
 
 

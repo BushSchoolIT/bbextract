@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/BushSchoolIT/bbextract/compare/v1.4.0...v1.4.1) (2025-07-24)
+
+
+### Bug Fixes
+
+* actually make mailsync command do what it says ([023c266](https://github.com/BushSchoolIT/bbextract/commit/023c26643dff61c299530b0be2e0c3bbea33deb4))
+
 ## [1.4.0](https://github.com/BushSchoolIT/bbextract/compare/v1.3.0...v1.4.0) (2025-07-24)
 
 

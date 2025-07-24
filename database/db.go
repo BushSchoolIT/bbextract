@@ -58,7 +58,7 @@ func (db *State) Close() error {
 	return db.Conn.Close(*db.Ctx)
 }
 
-func (db *State) InsertEmails(t blackbaud.UnorderedTable) error {
+func (db *State) InsertParentEmails(t blackbaud.UnorderedTable) error {
 	tx, err := db.Conn.BeginTx(*db.Ctx, pgx.TxOptions{})
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func (db *State) InsertEmails(t blackbaud.UnorderedTable) error {
 		tx.Rollback(*db.Ctx)
 		return fmt.Errorf("failed to truncate parent db: %v, cmd: %s", err, cmd.String())
 	}
-	// remove null primary keys
+	// remove null primary keys as not all parents have valid emails in Blackbaud
 	removeNull(primaryKeys, t)
 	query := fmt.Sprintf(`
 	INSERT INTO parents (%s) VALUES (%s)
@@ -101,8 +101,6 @@ func (db *State) InsertAttendance(t blackbaud.UnorderedTable) error {
 		"id": true,
 	}
 
-	// remove null primary keys
-	removeNull(primaryKeys, t)
 	query := fmt.Sprintf(`
 	INSERT INTO attendance (%s) VALUES (%s)
 	ON CONFLICT (%s)
@@ -173,8 +171,6 @@ func (db *State) TranscriptOps(t blackbaud.UnorderedTable, startYear int, endYea
 		"course_id":       true,
 		"grade_id":        true,
 	}
-	// remove null primary keys
-	removeNull(primaryKeys, t)
 	query := fmt.Sprintf(`
 	INSERT INTO transcripts (%s) VALUES (%s)
 	ON CONFLICT (%s)
@@ -218,11 +214,9 @@ func (db *State) EnrollmentOps(enrolled blackbaud.UnorderedTable, departed black
 	if err != nil {
 		return err
 	}
-	// remove null primary keys
 	primaryKeys := map[string]bool{
 		"student_user_id": true,
 	}
-	removeNull(primaryKeys, enrolled)
 	enrolledInsert := fmt.Sprintf(`
 	INSERT INTO enrollment (%s) VALUES (%s)
 	ON CONFLICT (%s)
@@ -309,8 +303,6 @@ func (db *State) TranscriptCommentOps(t blackbaud.UnorderedTable) error {
 	primaryKeys := map[string]bool{
 		"student_user_id": true,
 	}
-	// remove null primary keys
-	removeNull(primaryKeys, t)
 	query := fmt.Sprintf(`
 	INSERT INTO transcript_comments (%s) VALUES (%s)
 	ON CONFLICT (%s)

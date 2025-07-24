@@ -1,3 +1,5 @@
+name: release-and-build
+
 on:
   push:
     branches:
@@ -5,18 +7,42 @@ on:
 
 permissions:
   contents: write
-  issues: write
+  packages: write
   pull-requests: write
-
-name: release-please
+  issues: write
+  id-token: write
 
 jobs:
-  release-please:
+  release:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@v4
         with:
-          package-name: bbextract
+          package-name: release
           bump-minor-pre-major: true
           bump-patch-for-minor-pre-major: true
-          release-type: go
+          release-type: simple
+
+      - name: Checkout code
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Run GoReleaser
+        if: ${{ steps.release.outputs.release_created }}
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

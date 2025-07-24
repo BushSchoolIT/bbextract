@@ -35,7 +35,7 @@ var (
 	mailsyncCmd = &cobra.Command{
 		Use:   "mailsync",
 		Short: "Synchronizes the mailing lists in email octopus from the database",
-		RunE:  GSyncStudents,
+		RunE:  Mailsync,
 	}
 	commentsCmd = &cobra.Command{
 		Use:   "comments",

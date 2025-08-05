@@ -129,6 +129,13 @@ if __name__ == "__main__":
         schedule={"interval": 86400}
     ).apply()
 
+    Deployment.build_from_flow(
+        flow=run_enrollment_gsync,
+        name="run_enrollment_gsync",
+        work_pool_name=WORK_POOL,
+        schedule={"interval": 86400}
+    ).apply()
+
     p = Process(target=start_worker)
     p.start()
     p.join()

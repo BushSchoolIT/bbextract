@@ -57,8 +57,11 @@ var (
 		Short: "Extracts enrollment info from blackbaud and imports into the database",
 		RunE:  Enrollment,
 	}
-	fLogFile      string
-	fLogLevel     string
+	authCmd = &cobra.Command{
+		Use:   "auth",
+		Short: "Generates auth files for email octopus and blackbaud",
+		RunE:  GenerateAuthFiles,
+	}
 	fConfigFile   string
 	fAuthFile     string
 	fGAuthFile    string
@@ -84,6 +87,7 @@ func init() {
 	rootCmd.AddCommand(attendanceCmd)
 	rootCmd.AddCommand(commentsCmd)
 	rootCmd.AddCommand(gpaCmd)
+	rootCmd.AddCommand(authCmd)
 	rootCmd.AddCommand(gsyncStudentsCmd)
 	rootCmd.AddCommand(enrollmentCmd)
 	rootCmd.AddCommand(mailsyncCmd)

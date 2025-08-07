@@ -9,26 +9,31 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
 )
 
+type SkyAppInfo struct {
+	AppID     string `json:"app_id"`
+	AppSecret string `json:"app_secret"`
+}
+
+type TokenInfo struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+type OtherInfo struct {
+	ApiSubscriptionKey string `json:"api_subscription_key"`
+	TestApiEndpoint    string `json:"test_api_endpoint"`
+	RedirectUri        string `json:"redirect_uri"`
+}
+
 type Config struct {
-	Other struct {
-		ApiSubscriptionKey string `json:"api_subscription_key"`
-		TestApiEndpoint    string `json:"test_api_endpoint"`
-		RedirectURI        string `json:"redirect_uri"`
-	} `json:"other"`
-	Tokens struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-	} `json:"tokens"`
-	SkyAppInformation struct {
-		AppID     string `json:"app_id"`
-		AppSecret string `json:"app_secret"`
-	} `json:"sky_app_information"`
+	Other             OtherInfo  `json:"other"`
+	Tokens            TokenInfo  `json:"tokens"`
+	SkyAppInformation SkyAppInfo `json:"sky_app_information"`
 }
 
 type BBAPIConnector struct {
@@ -90,12 +95,14 @@ type Parent struct {
 }
 
 const (
-	TokenUrl      string = "https://oauth2.sky.blackbaud.com/token"
-	ListsApi      string = "https://api.sky.blackbaud.com/school/v1/lists/advanced"
-	Host          string = "api.sky.blackbaud.com"
-	YearApi       string = "https://api.sky.blackbaud.com/school/v1/years"
-	AttendanceApi string = "https://api.sky.blackbaud.com/school/v1/attendance"
-	UsersApi      string = "https://api.sky.blackbaud.com/school/v1/users"
+	TokenUrl        string = "https://oauth2.sky.blackbaud.com/token"
+	ListsApi        string = "https://api.sky.blackbaud.com/school/v1/lists/advanced"
+	Host            string = "api.sky.blackbaud.com"
+	YearApi         string = "https://api.sky.blackbaud.com/school/v1/years"
+	AttendanceApi   string = "https://api.sky.blackbaud.com/school/v1/attendance"
+	UsersApi        string = "https://api.sky.blackbaud.com/school/v1/users"
+	RedirectUri     string = "http://localhost:13631/callback"
+	TestApiEntpoint string = "https://api.sky.blackbaud.com/school/v1/roles"
 )
 
 // Create a new API connector using an existing JSON path (MUST exist, currently we don't generate the auth stuff just yet)
@@ -160,14 +167,7 @@ func refreshToken(config *Config) error {
 	form.Set("preserve_refresh_token", "true")
 	form.Set("client_id", config.SkyAppInformation.AppID)
 	form.Set("client_secret", config.SkyAppInformation.AppSecret)
-	req, err := http.NewRequest(http.MethodPost, TokenUrl, strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	if err != nil {
-		return err
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := http.PostForm(TokenUrl, form)
 	if err != nil {
 		return err
 	}

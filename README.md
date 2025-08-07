@@ -1,5 +1,4 @@
 # bbextract
-
 General purpose tool for various syncing and ETL tasks accross Bush
 
 ## Features/Overview:
@@ -66,10 +65,14 @@ Same from the older blackbaud auth JSON, looks roughly like:
 }
 ```
 
+in order to generate octo_auth.json and bb_auth.json there was a helper created, just run:
+```bash
+  bbextract auth
+```
+and walk through the steps of creating the authfiles, you will need to sign in on a browser for the blackbaud 0auth, once ran it will spit out the required auth files for email octopus and blackbaud
+
 
 ### Configuration:
-
-
 
 #### config.json
 ```json
@@ -101,9 +104,16 @@ Same from the older blackbaud auth JSON, looks roughly like:
 ```
 #### mailconfig.json
 
+JSON containing the configuration for mailing lists in email octopus, fields include:
+* name: this is so that you can easily identify *which* list we are operating on
+* id: list ID in email octopus
+* grades: list of student grades for the parent
+Example:
 ```json
 [
-  {"name": "It Test", "id":"7dadb030-8fb5-11ee-9a34-59d0c2d4a70b", "grades":[12,11,10,9]}
+  {"name": "Upper School", "id":"7dadb030-8fb5-11ee-9a34-59d0c2d4a70b", "grades":[12,11,10,9]}
+  {"name": "Lower School", "id":"7dadb030-8fb5-11ee-9a34-59d0c2d4a70b", "grades":[0,1,2,3,4,5]}
+  {"name": "Middle School", "id":"7dadb030-8fb5-11ee-9a34-59d0c2d4a70b", "grades":[6,7,8]}
 ]
 ```
 
@@ -121,3 +131,8 @@ bbextract/
 ├── mailconfig.json      # Mail configuration
 ├── config.json          # General configuration
 ```
+
+
+## Database
+
+the schema is included with schema.sql, go ahead and run the schema, and give the proper database credentials in the config. (Look up how to create and manage databases with PGAdmin)
